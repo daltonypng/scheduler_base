@@ -1,47 +1,66 @@
 import json
-from event import Event
+import uuid
+from sqlalchemy.sql import select
+from database_connection import engine, events
 
-class Events:
+def events_post(request):
 
-    def __init__(self):
-        self.list = {}
+    request_json_data = request.get_json()
 
-    #*****************************************************************************#
-    def post(self, request):
+    stmt = events.insert().values( \
+        event_id=str(uuid.uuid1()),\
+        name=request_json_data["name"],\
+        date=request_json_data["date"],\
+        status=request_json_data["status"] )
 
-        event = Event()
-        event.post(request.get_json())
-        self.list[event.get_id()] = event
-        return event.get_id(), 200
-    #*****************************************************************************#
-    def get(self):
+    conn = engine.connect()
+    conn.execute(stmt)
 
-        events_json = {}
+    return "", 200
 
-        for event_id in self.list:
-            events_json[event_id] = self.list[event_id].get()
+def events_get():
 
-        return json.dumps(events_json)
-    #*****************************************************************************#
-    def put(self, request):
+    events_json = []
+    conn = engine.connect()
 
-        event_id = request.args.get("id")
-        event_json = request.get_json()
+    query = (select(
+        events.c.event_id,
+        events.c.name,
+        events.c.date,
+        events.c.status))
 
-        if event_id in self.list:
-            self.list[event_id].put(event_json)
+    result = conn.execute(query)
 
-            return "", 200
+    for row in result:
+        events_json.append({
+            "event_id": row["event_id"],
+            "name": row["name"],
+            "date": row["date"],
+            "status": row["status"]})
 
-        return "Evento não cadastrado para essa ID", 500
-    #*****************************************************************************#
-    def delete(self, request):
+    return json.dumps(events_json)
 
-        event_id = request.args.get("id")
+def events_put(request):
 
-        if event_id in self.list:
-            del self.list[event_id]
+    event_id = request.args.get("id")
+    event_json = request.get_json()
 
-            return "", 200
+    stmt = events.update().where(
+        events.c.event_id == event_id).values(
+            status=event_json["status"] )
 
-        return "Evento não cadastrado para essa ID", 500
+    conn = engine.connect()
+    conn.execute(stmt)
+
+    return "", 200
+
+def events_delete(request):
+    print(type(request.args.get("id")))
+    stmt = (events.delete()
+        .where(events.c.event_id == request.args.get("id"))
+        )
+
+    conn = engine.connect()
+    conn.execute(stmt)
+
+    return "", 200

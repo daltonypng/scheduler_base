@@ -1,21 +1,27 @@
 from flask import Flask, request
-from events import Events
+from events import events_post, events_put, events_delete, events_get
+from database_connection import create_database_tables
+
+create_database_tables()
 
 app = Flask(__name__)
-
-events = Events()
 
 @app.route("/events", methods=["GET", "POST", "PUT", "DELETE"])
 
 def endpoint_events():
 
-    if request.method == "POST":
-        return events.post(request)
+    match request.method:
 
-    if request.method == "PUT":
-        return events.put(request)
+        case "POST":
+            response = events_post(request)
 
-    if request.method == "DELETE":
-        return events.delete(request)
+        case "PUT":
+            response = events_put(request)
 
-    return events.get()
+        case "DELETE":
+            response = events_delete(request)
+
+        case _:
+            response = events_get()
+
+    return response
